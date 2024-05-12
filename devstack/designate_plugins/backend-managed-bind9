@@ -116,7 +116,7 @@ key "$RNDC_KEYNAME" {
 EOF
     fi
 
-    sudo chown root:$STACK_USER $DESIGNATE_CONF_DIR/rndc.key
+    sudo chown root:$STACK_GROUP $DESIGNATE_CONF_DIR/rndc.key
     sudo chmod 640 $DESIGNATE_CONF_DIR/rndc.key
 
     # Configure RNDC
