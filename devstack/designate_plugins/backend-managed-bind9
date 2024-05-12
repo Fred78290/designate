@@ -1,0 +1,159 @@
+# Configure the bind9 pool backend
+
+# Enable with:
+# DESIGNATE_BACKEND_DRIVER=bind9
+
+# Dependencies:
+# ``functions`` file
+# ``designate`` configuration
+
+# install_designate_backend - install any external requirements
+# configure_designate_backend - make configuration changes, including those to other services
+# init_designate_backend - initialize databases, etc.
+# start_designate_backend - start any external services
+# stop_designate_backend - stop any external services
+# cleanup_designate_backend - remove transient data and cache
+
+# Save trace setting
+DP_BIND9_XTRACE=$(set +o | grep xtrace)
+set +o xtrace
+
+# Defaults
+# --------
+RNDC_KEYNAME=${RNDC_KEYNAME:rndc-key}
+RNDC_ALGORYTHM=${RNDC_ALGORYTHM:hmac-sha256}
+RNDC_SECRET=${RNDC_SECRET:}
+BIND_GROUP=bind
+DESIGNATE_SERVICE_PORT_RNDC=${DESIGNATE_SERVICE_PORT_RNDC:-953}
+
+# Entry Points
+# ------------
+
+# install_designate_backend - install any external requirements
+function install_designate_backend {
+    if is_ubuntu; then
+        install_package bind9-utils
+    elif is_fedora; then
+        install_package bind-utils
+    fi
+
+    echo "Use managed bind9 backend"
+}
+
+# configure_designate_backend - make configuration changes, including those to other services
+function configure_designate_backend {
+    # Generate Designate pool.yaml file
+    sudo tee $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
+---
+- name: default
+  description: DevStack BIND Pool
+  attributes: {}
+
+  ns_records:
+    - hostname: $DESIGNATE_DEFAULT_NS_RECORD
+      priority: 1
+
+  nameservers:
+    - host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
+      port: $DESIGNATE_SERVICE_PORT_DNS
+
+EOF
+
+    if [[ "$DESIGNATE_USE_CATALOG_ZONES" == "True" ]]; then
+        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
+  targets:
+    - type: fake
+      description: BIND Instance
+
+      masters:
+        - host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
+          port: $DESIGNATE_SERVICE_PORT_MDNS
+
+      options:
+        host: $HOST_IP
+        port: $DESIGNATE_SERVICE_PORT_DNS
+EOF
+    else
+        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
+  targets:
+    - type: bind9
+      description: BIND Instance
+
+      masters:
+        - host: $(ipv6_unquote $SERVICE_HOST)
+          port: $DESIGNATE_SERVICE_PORT_MDNS
+
+      options:
+        host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
+        port: $DESIGNATE_SERVICE_PORT_DNS
+        rndc_host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
+        rndc_port: $DESIGNATE_SERVICE_PORT_RNDC
+        rndc_config_file: $DESIGNATE_CONF_DIR/rndc.conf
+        rndc_key_file: $DESIGNATE_CONF_DIR/rndc.key
+        clean_zonefile: true
+EOF
+    fi
+
+    if [[ "$DESIGNATE_USE_CATALOG_ZONES" == "True" ]]; then
+        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
+  catalog_zone:
+      catalog_zone_fqdn: default-pool.test.
+      catalog_zone_refresh: 60
+#      # TSIG secret and algorithm to use for securing AXFRs for catalog zones.
+#      catalog_zone_tsig_key: SomeSecretKey
+#      catalog_zone_tsig_algorithm: hmac-sha512
+EOF
+    fi
+
+    if [ -z ${RNDC_SECRET} ]; then
+        sudo rndc-confgen -a -c $BIND_CFG_DIR/rndc.key
+    else
+    # create rndc key and config
+    cat > $DESIGNATE_CONF_DIR/rndc.key <<EOF
+key "$RNDC_KEYNAME" {
+	algorithm $RNDC_ALGORYTHM;
+	secret "$RNDC_SECRET";
+};
+EOF
+    fi
+
+    sudo chown $STACK_USER:$BIND_GROUP $DESIGNATE_CONF_DIR/rndc.key
+    sudo chmod g+r $DESIGNATE_CONF_DIR/rndc.key
+
+    # Configure RNDC
+    sudo tee $DESIGNATE_CONF_DIR/rndc.conf > /dev/null << EOF
+include "$DESIGNATE_CONF_DIR/rndc.key";
+
+options {
+    default-key "${RNDC_KEYNAME}";
+    default-server $(ipv6_unquote $DESIGNATE_SERVICE_HOST);
+    default-port $DESIGNATE_SERVICE_PORT_RNDC;
+};
+EOF
+
+    sudo chown $STACK_USER:$BIND_GROUP $BIND_CFG_FILE $DESIGNATE_CONF_DIR/rndc.conf
+    sudo chmod g+r $DESIGNATE_CONF_DIR/rndc.conf
+}
+
+# init_designate_backend - initialize databases, etc.
+function init_designate_backend {
+    :
+}
+
+# start_designate_backend - start any external services
+function start_designate_backend {
+    :
+}
+
+# stop_designate_backend - stop any external services
+function stop_designate_backend {
+    :
+}
+
+# cleanup_designate_backend - remove transient data and cache
+function cleanup_designate_backend {
+    :
+}
+
+# Restore xtrace
+$DP_BIND9_XTRACE
