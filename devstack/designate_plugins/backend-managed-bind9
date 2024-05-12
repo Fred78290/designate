@@ -108,7 +108,7 @@ EOF
         sudo rndc-confgen -a -c $BIND_CFG_DIR/rndc.key
     else
     # create rndc key and config
-    cat > $DESIGNATE_CONF_DIR/rndc.key <<EOF
+    sudo tee $DESIGNATE_CONF_DIR/rndc.key > /dev/null <<EOF
 key "$RNDC_KEYNAME" {
 	algorithm $RNDC_ALGORYTHM;
 	secret "$RNDC_SECRET";
@@ -117,7 +117,7 @@ EOF
     fi
 
     sudo chown root:$STACK_USER $DESIGNATE_CONF_DIR/rndc.key
-    sudo chmod g+r $DESIGNATE_CONF_DIR/rndc.key
+    sudo chmod 640 $DESIGNATE_CONF_DIR/rndc.key
 
     # Configure RNDC
     sudo tee $DESIGNATE_CONF_DIR/rndc.conf > /dev/null << EOF
