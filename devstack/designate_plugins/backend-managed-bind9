@@ -23,7 +23,6 @@ set +o xtrace
 RNDC_KEYNAME=${RNDC_KEYNAME:rndc-key}
 RNDC_ALGORYTHM=${RNDC_ALGORYTHM:hmac-sha256}
 RNDC_SECRET=${RNDC_SECRET:-}
-BIND_GROUP=bind
 DESIGNATE_SERVICE_PORT_RNDC=${DESIGNATE_SERVICE_PORT_RNDC:-953}
 
 # Entry Points
@@ -117,7 +116,7 @@ key "$RNDC_KEYNAME" {
 EOF
     fi
 
-    sudo chown $STACK_USER:$BIND_GROUP $DESIGNATE_CONF_DIR/rndc.key
+    sudo chown root:$STACK_USER $DESIGNATE_CONF_DIR/rndc.key
     sudo chmod g+r $DESIGNATE_CONF_DIR/rndc.key
 
     # Configure RNDC
@@ -131,7 +130,7 @@ options {
 };
 EOF
 
-    sudo chown $STACK_USER:$BIND_GROUP $BIND_CFG_FILE $DESIGNATE_CONF_DIR/rndc.conf
+    sudo chown $STACK_USER $BIND_CFG_FILE $DESIGNATE_CONF_DIR/rndc.conf
     sudo chmod g+r $DESIGNATE_CONF_DIR/rndc.conf
 }
 
