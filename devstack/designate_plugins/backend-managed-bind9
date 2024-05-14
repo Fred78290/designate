@@ -23,8 +23,9 @@ set +o xtrace
 RNDC_KEYNAME=${RNDC_KEYNAME:rndc-key}
 RNDC_ALGORYTHM=${RNDC_ALGORYTHM:hmac-sha256}
 RNDC_SECRET=${RNDC_SECRET:-}
-DESIGNATE_SERVICE_PORT_RNDC=${DESIGNATE_SERVICE_PORT_RNDC:-953}
-
+DESIGNATE_MANAGED_BIND9_HOST=${DESIGNATE_MANAGED_BIND9_HOST:-$DESIGNATE_SERVICE_HOST}
+DESIGNATE_MANAGED_BIND9_PORT_DNS=${DESIGNATE_MANAGED_BIND9_PORT_DNS:-53}
+DESIGNATE_MANAGED_BIND9_PORT_RNDC=${DESIGNATE_MANAGED_BIND9_PORT_RNDC:-953}
 # Entry Points
 # ------------
 
@@ -43,7 +44,6 @@ function install_designate_backend {
 function configure_designate_backend {
     # Generate Designate pool.yaml file
     sudo tee $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
----
 - name: default
   description: DevStack BIND Pool
   attributes: {}
@@ -53,27 +53,9 @@ function configure_designate_backend {
       priority: 1
 
   nameservers:
-    - host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
-      port: $DESIGNATE_SERVICE_PORT_DNS
+    - host: $(ipv6_unquote $DESIGNATE_MANAGED_BIND9_HOST)
+      port: $DESIGNATE_MANAGED_BIND9_PORT_DNS
 
-EOF
-
-    if [[ "$DESIGNATE_USE_CATALOG_ZONES" == "True" ]]; then
-        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
-  targets:
-    - type: fake
-      description: BIND Instance
-
-      masters:
-        - host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
-          port: $DESIGNATE_SERVICE_PORT_MDNS
-
-      options:
-        host: $HOST_IP
-        port: $DESIGNATE_SERVICE_PORT_DNS
-EOF
-    else
-        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
   targets:
     - type: bind9
       description: BIND Instance
@@ -83,26 +65,14 @@ EOF
           port: $DESIGNATE_SERVICE_PORT_MDNS
 
       options:
-        host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
-        port: $DESIGNATE_SERVICE_PORT_DNS
-        rndc_host: $(ipv6_unquote $DESIGNATE_SERVICE_HOST)
-        rndc_port: $DESIGNATE_SERVICE_PORT_RNDC
+        host: $(ipv6_unquote $DESIGNATE_MANAGED_BIND9_HOST)
+        port: $DESIGNATE_MANAGED_BIND9_PORT_DNS
+        rndc_host: $(ipv6_unquote $DESIGNATE_MANAGED_BIND9_HOST)
+        rndc_port: $DESIGNATE_MANAGED_BIND9_PORT_RNDC
         rndc_config_file: $DESIGNATE_CONF_DIR/rndc.conf
         rndc_key_file: $DESIGNATE_CONF_DIR/rndc.key
         clean_zonefile: true
 EOF
-    fi
-
-    if [[ "$DESIGNATE_USE_CATALOG_ZONES" == "True" ]]; then
-        sudo tee -a $DESIGNATE_CONF_DIR/pools.yaml > /dev/null <<EOF
-  catalog_zone:
-      catalog_zone_fqdn: default-pool.test.
-      catalog_zone_refresh: 60
-#      # TSIG secret and algorithm to use for securing AXFRs for catalog zones.
-#      catalog_zone_tsig_key: SomeSecretKey
-#      catalog_zone_tsig_algorithm: hmac-sha512
-EOF
-    fi
 
     if [ -z ${RNDC_SECRET} ]; then
         sudo rndc-confgen -a -c $BIND_CFG_DIR/rndc.key
@@ -125,8 +95,8 @@ include "$DESIGNATE_CONF_DIR/rndc.key";
 
 options {
     default-key "${RNDC_KEYNAME}";
-    default-server $(ipv6_unquote $DESIGNATE_SERVICE_HOST);
-    default-port $DESIGNATE_SERVICE_PORT_RNDC;
+    default-server $(ipv6_unquote $DESIGNATE_MANAGED_BIND9_HOST);
+    default-port $DESIGNATE_MANAGED_BIND9_PORT_RNDC;
 };
 EOF
 
