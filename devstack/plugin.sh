@@ -133,6 +133,8 @@ function configure_designatedashboard {
     if [ -d ${DESIGNATEDASHBOARD_DIR}/designatedashboard/locale ]; then
         (cd ${DESIGNATEDASHBOARD_DIR}/designatedashboard; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings ../manage.py compilemessages)
     fi
+
+    (cd ${DESIGNATEDASHBOARD_DIR}/designatedashboard; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings ../manage.py compress)
 }
 
 # Configure the needed tempest options
