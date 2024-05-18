@@ -75,7 +75,7 @@ function configure_designate_backend {
 EOF
 
     if [ -z ${RNDC_SECRET} ]; then
-        sudo rndc-confgen -a -c $BIND_CFG_DIR/rndc.key
+        sudo rndc-confgen -a -c $DESIGNATE_CONF_DIR/rndc.key
     else
     # create rndc key and config
     sudo tee $DESIGNATE_CONF_DIR/rndc.key > /dev/null <<EOF
