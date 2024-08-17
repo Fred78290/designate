@@ -79,21 +79,10 @@
     name: designate-bind9-centos-9-stream
     parent: designate-bind9
     nodeset: devstack-single-node-centos-9-stream
-
-- job:
-    name: designate-bind9-sqlalchemy-2x
-    parent: designate-bind9
-    description: |
-      Run tempest tests with main branch of SQLAlchemy, alembic and oslo.db.
-    # The job only tests the latest and shouldn't be run on the stable branches
-    branches:
-       regex: ^stable
-       negate: true
-    required-projects:
-      - name: openstack/oslo.db
     vars:
       devstack_localrc:
-        USE_SQLALCHEMY_LATEST: true
+        DESIGNATE_COORDINATION_URL: "etcd3+http://{{ hostvars['controller']['nodepool']['private_ipv4'] }}:2379?api_version=v3"
+
 
 - job:
     name: designate-bind9-catalog-zones
@@ -196,24 +185,6 @@
     vars:
       tox_envlist: dnspython-latest
 
-# Temporary job until SQLAlchemy 2.0 is no longer blocked by upper-requirements
-- job:
-    name: designate-tox-py310-with-sqlalchemy-2x
-    parent: openstack-tox-py310
-    description: |
-      Run unit tests with main branch of SQLAlchemy, alembic and oslo.db.
-      Takes advantage of the base tox job's install-siblings feature.
-    # The job only tests the latest and shouldn't be run on the stable branches
-    branches:
-       regex: ^stable
-       negate: true
-    required-projects:
-      - name: github.com/sqlalchemy/sqlalchemy
-        override-checkout: main
-      - name: github.com/sqlalchemy/alembic
-        override-checkout: main
-      - name: openstack/oslo.db
-
 - project-template:
     name: designate-devstack-jobs
     queue: designate
@@ -252,8 +223,6 @@
     check:
       jobs:
         - neutron-tempest-plugin-designate-scenario
-        - designate-tox-py310-with-sqlalchemy-2x
-        - designate-bind9-sqlalchemy-2x
         - designate-tox-dnspython-latest:
             voting: false
         - designate-bind9-catalog-zones:
@@ -261,8 +230,6 @@
     gate:
       jobs:
         - neutron-tempest-plugin-designate-scenario
-        - designate-tox-py310-with-sqlalchemy-2x
-        - designate-bind9-sqlalchemy-2x
     experimental:
       jobs:
         - designate-pdns4-postgres
