@@ -137,7 +137,7 @@ function configure_designate {
 function configure_designatedashboard {
     # Compile message catalogs
     if [ -d ${DESIGNATEDASHBOARD_DIR}/designatedashboard/locale ]; then
-        (cd ${DESIGNATEDASHBOARD_DIR}/designatedashboard; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings ../manage.py compilemessages)
+        (cd ${DESIGNATEDASHBOARD_DIR}/designatedashboard; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings $PYTHON ../manage.py compilemessages)
     fi
 
     (cd ${DESIGNATEDASHBOARD_DIR}/designatedashboard; DJANGO_SETTINGS_MODULE=openstack_dashboard.settings ../manage.py compress)
@@ -190,7 +190,7 @@ function create_designate_accounts {
     local designate_api_url
 
     if is_service_enabled designate-api; then
-        create_service_user "designate"
+        create_service_user "designate" "admin"
 
         designate_api_url="$DESIGNATE_SERVICE_PROTOCOL://$DESIGNATE_SERVICE_HOST/dns"
 
